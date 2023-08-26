@@ -1,0 +1,25 @@
+{
+  "audioFilePath": "",
+  "coverFilePath": null,
+  "lyricsFilePath": null,
+  "multilineLyrics": false,
+  "lyricsOffset": null,
+  "title": "",
+  "subTitle": "",
+
+  "outputFilePath": "",
+  "outputVideoCodec": "h264_nvenc",
+  "outputAudioCodec": "aac",
+  "bitrate": "10000k",
+
+  "duration": null,
+  "fps": 30,
+  "coverCycle": 50,
+  "coverRotating": false,
+
+  "application": {
+    "useCache": false,
+    "showCover": true,
+    "preview": false
+  }
+}
