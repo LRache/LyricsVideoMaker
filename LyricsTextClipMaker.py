@@ -60,7 +60,7 @@ def get_lyrics_text_clip_list(configures: Configures) -> [TextClip]:
     print(f"Generate Lyrics Clip: " + str(lyricsList[0]))
 
     for i in range(1, lyricsLength-2):
-        lyricsTextClipLigit st.extend(get_one_lyrics_text_clip(
+        lyricsTextClipList.extend(get_one_lyrics_text_clip(
             lyricsList[i].text, configures,
             lyricsList[i-1].time, lyricsList[i].time,
             lyricsList[i+1].time, lyricsList[i+2].time
