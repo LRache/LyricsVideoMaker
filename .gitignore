@@ -1,0 +1,8 @@
+.idea
+.vscode
+*.exe
+*.mp3
+*.mp4
+*.psd
+__pycache__
+Configures
