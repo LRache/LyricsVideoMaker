@@ -54,15 +54,14 @@ class VideoViewer(QOpenGLWidget):
         self.setFormat(surfaceFormat)
 
     def load_frame_image(self):
-        self.currentTime = self.mediaPlayer.position() / 1000
         frame = self.videoClip.get_frame(self.currentTime)
         frameData = numpy.array(frame)
         self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888).\
             scaled(1280, 720, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
     def playerTimer_timeout(self):
-        self.currentTime = time.perf_counter() - self.startTime
-        if self.lastTime != -1:
+        self.currentTime = self.mediaPlayer.position() / 1000
+        if self.lastTime != -1 and self.currentTime != self.lastTime:
             self.currentFps = 1 / (self.currentTime - self.lastTime)
         self.lastTime = self.currentTime
 
@@ -74,7 +73,7 @@ class VideoViewer(QOpenGLWidget):
         self.video_time_changed(self.currentTime)
 
     def paintGL(self) -> None:
-        if self.status != VideoViewer.MediaStatus.STOPPED:
+        if self.status != VideoViewer.MediaStatus.STOPPED and self.frameImage is not None:
             painter = QPainter()
             painter.begin(self)
             painter.drawImage(0, 0, self.frameImage)
@@ -87,14 +86,11 @@ class VideoViewer(QOpenGLWidget):
     def play(self):
         self.lastTime = -1
         if self.status == VideoViewer.MediaStatus.STOPPED:
-            self.currentTime = 0
             self.timeStep = int(1000 / self.videoClip.fps)
-            self.load_frame_image()
 
             self.playerTimer.setInterval(self.timeStep)
-            self.set_position(0)
-            self.playerTimer.start()
             self.mediaPlayer.play()
+            self.playerTimer.start()
 
             self.status = VideoViewer.MediaStatus.PLAYING
         elif self.status == VideoViewer.MediaStatus.PAUSED:
@@ -119,8 +115,6 @@ class VideoViewer(QOpenGLWidget):
         self.status = VideoViewer.MediaStatus.PAUSED
 
     def set_position(self, t: float):
-        self.startTime = time.perf_counter() - t
-        self.startPosition = t
         self.mediaPlayer.setPosition(int(t*1000))
         print("set_position：", t)
 
