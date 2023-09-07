@@ -1,12 +1,13 @@
-from moviepy.editor import CompositeVideoClip, AudioFileClip, vfx
+import os
+
+import psutil
+from moviepy.editor import CompositeVideoClip, AudioFileClip
 from moviepy.video.VideoClip import TextClip
 
 from BackgroundVideoClipMaker import get_background_video_clip
 from LyricsTextClipMaker import get_lyrics_text_clip_list
 from Configures import Configures
 from LyricsPaser import get_lyrics
-
-import time
 
 
 def get_title_text_clip(configures: Configures):
@@ -27,13 +28,14 @@ def get_title_text_clip(configures: Configures):
     return titleClip, title2Clip
 
 
-def generate_video(configures: Configures, start: float = None, end: float = None):
-    startTime = time.time()
+def generate_video(configures: Configures):
     if configures.audioInfo.lyricsFilePath is not None:
         with open(configures.audioInfo.lyricsFilePath, encoding='utf-8') as f:
             text = f.read()
             configures.audioInfo.lyrics = get_lyrics(text[1:] if text and text[0] == "\ufeff" else text,
                                                      configures.audioInfo.lyricsOffset)
+        for i in configures.audioInfo.advancePoints:
+            configures.audioInfo.lyrics[i].advance = True
 
     mainAudioClip = AudioFileClip(configures.audioInfo.audioFilePath)
     if configures.duration is None:
@@ -44,6 +46,7 @@ def generate_video(configures: Configures, start: float = None, end: float = Non
     clips = [get_background_video_clip(configures)]
     clips.extend(get_title_text_clip(configures))
     if configures.audioInfo.lyricsFilePath is not None:
+        print("Generate Lyrics Clip:")
         clips.extend(get_lyrics_text_clip_list(configures))
 
     mainVideoClip: CompositeVideoClip = CompositeVideoClip(
@@ -53,11 +56,5 @@ def generate_video(configures: Configures, start: float = None, end: float = Non
     mainVideoClip = mainVideoClip.set_fps(configures.fps)
     mainVideoClip = mainVideoClip.set_duration(configures.duration)
 
-    if configures.preview:
-        mainVideoClip.subclip(start, end).preview()
-    else:
-        mainVideoClip.write_videofile(configures.output.filePath,
-                                      codec=configures.output.videoCodec,
-                                      bitrate=configures.output.bitrate,
-                                      audio_codec=configures.output.audioCodec)
-        print(f"Finished in {time.time() - startTime}s")
+    print("当前进程的内存使用：%.4fMB" % (psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024))
+    return mainVideoClip

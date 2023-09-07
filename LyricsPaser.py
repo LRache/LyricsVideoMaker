@@ -2,6 +2,7 @@ class Lyrics:
     def __init__(self, text: str, time):
         self.text = text.replace("\\n", "\n") if len(text) != 0 else " "
         self.time = time
+        self.advance = False
 
     def __str__(self):
         minute = self.time // 60

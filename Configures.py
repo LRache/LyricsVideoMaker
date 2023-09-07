@@ -1,4 +1,5 @@
 import json
+import os
 
 from LyricsPaser import Lyrics
 
@@ -8,9 +9,13 @@ class AudioInfo:
     titleText: str = None
     subTitleText: str = None
     lyricsFilePath: str = None
+    advancePoints: [int] = None
 
     lyrics: [Lyrics] = None
     lyricsOffset: float = 0.0
+
+    def __init__(self):
+        self.advancePoints = []
 
 
 class LyricsConfigures:
@@ -22,8 +27,8 @@ class LyricsConfigures:
     currentColor: str = "rgb(227, 224, 235)"
     multiline: bool = False
 
-    line1Y = 780
-    lineY: [int] = [line1Y, line1Y+lineSplit, line1Y+lineSplit*2]
+    firstLineY = 780
+    lineY: [int] = [firstLineY, firstLineY + lineSplit, firstLineY + lineSplit * 2]
     moveSpeed = 300
 
     def set_multiline(self, flag: bool):
@@ -31,10 +36,11 @@ class LyricsConfigures:
         if flag:
             self.fontSize = 35
             self.lineSplit = 95
+            self.firstLineY = 760
         else:
             self.fontSize = LyricsConfigures.fontSize
             self.lineSplit = LyricsConfigures.lineSplit
-        self.lineY = [self.line1Y, self.line1Y + self.lineSplit, self.line1Y + self.lineSplit * 2]
+        self.lineY = [self.firstLineY, self.firstLineY + self.lineSplit, self.firstLineY + self.lineSplit * 2]
 
 
 class TitleConfigures:
@@ -51,7 +57,7 @@ class OutputConfigures:
     videoCodec: str = "h264_nvenc"
     audioCodec: str = "aac"
     filePath: str = None
-    bitrate: str = "10000k"
+    bitrate: str = "5000k"
 
 
 class BackgroundConfigures:
@@ -88,6 +94,17 @@ class Configures:
     preview = False
     multipy = 2
 
+    advancePointSize = 20
+    advancePointSplit = 40
+    advancePointPositionList = (
+        (videoWidth / 2 - advancePointSize / 2 - advancePointSplit,
+         LyricsConfigures.lineY[2] - 30),
+        (videoWidth / 2 - advancePointSize / 2,
+         LyricsConfigures.lineY[2] - 30),
+        (videoWidth / 2 - advancePointSize / 2 + advancePointSplit,
+         LyricsConfigures.lineY[2] - 30)
+    )
+
     def __init__(self):
         self.audioInfo = AudioInfo()
         self.lyrics = LyricsConfigures()
@@ -102,10 +119,22 @@ class Configures:
         self.background.recordPixmapY = self.background.coverImageY + self.background.coverImageSize // 2 - \
                                         self.background.recordPixmapR
 
+    def set_multiline_lyrics(self, flag: bool):
+        self.lyrics.set_multiline(flag)
+        self.advancePointPositionList = (
+            (self.videoWidth / 2 - self.advancePointSize / 2 - self.advancePointSplit,
+             self.lyrics.lineY[2] - 30),
+            (self.videoWidth / 2 - self.advancePointSize / 2,
+             self.lyrics.lineY[2] - 30),
+            (self.videoWidth / 2 - self.advancePointSize / 2 + self.advancePointSplit,
+             self.lyrics.lineY[2] - 30)
+        )
+
 
 def load_configures(configures: Configures, path: str):
     with open(path, encoding="utf-8") as f:
         c: dict = json.load(f)
+    dirname = os.path.dirname(os.path.abspath(path))
 
     configures.background.coverImagePath = c.get("coverFilePath", BackgroundConfigures.coverImagePath)
     configures.background.coverRotating = c.get("coverRotating", BackgroundConfigures.coverRotating)
@@ -115,13 +144,14 @@ def load_configures(configures: Configures, path: str):
     configures.audioInfo.lyricsOffset = c.get("lyricsOffset", AudioInfo.lyricsOffset)
     configures.audioInfo.titleText = c.get("title", AudioInfo.titleText)
     configures.audioInfo.subTitleText = c.get("subTitle", AudioInfo.subTitleText)
+    configures.audioInfo.advancePoints = list(map(lambda x: x - 1, c.get("advancePoints", [])))
 
     configures.output.filePath = c.get("outputFilePath", OutputConfigures.filePath)
     configures.output.videoCodec = c.get("outputVideoCodec", OutputConfigures.videoCodec)
     configures.output.audioCodec = c.get("outputAudioCodec", OutputConfigures.audioCodec)
     configures.output.bitrate = c.get("bitrate", OutputConfigures.bitrate)
 
-    configures.lyrics.set_multiline(c.get("multilineLyrics", LyricsConfigures.multiline))
+    configures.set_multiline_lyrics(c.get("multilineLyrics", LyricsConfigures.multiline))
 
     configures.duration = c.get("duration", Configures.duration)
     configures.fps = c.get("fps", Configures.fps)
@@ -130,3 +160,11 @@ def load_configures(configures: Configures, path: str):
     configures.showCover = c["application"]["showCover"]
     configures.preview = c["application"]['preview']
     configures.showCover = c["application"]["showCover"]
+
+    if configures.audioInfo.lyricsFilePath is not None:
+        if not os.path.isfile(configures.audioInfo.lyricsFilePath):
+            tmp = dirname + configures.audioInfo.lyricsFilePath
+            if os.path.isfile(tmp):
+                configures.audioInfo.lyricsFilePath = tmp
+            else:
+                raise FileNotFoundError(f'"{configures.audioInfo.lyricsFilePath}" or "{tmp}"')
