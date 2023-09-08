@@ -42,9 +42,13 @@ class VideoViewer(QOpenGLWidget):
         self.endTime: float = 0
         self.lastTime: float = -1
         self.currentFps = 0
+        self.frameImageWidth = 1920
+        self.frameImageHeight = 1080
+        self.load_frame_image = self.load_frame_image_1080p
 
         self.playerTimer.setTimerType(Qt.TimerType.PreciseTimer)
         self.playerTimer.timeout.connect(self.playerTimer_timeout)
+        self.mediaPlayer.mediaStatusChanged.connect(self.mediaPlayer_mediaStatusChanged)
 
         if videoClip is not None:
             self.set_video(videoClip, audioPath)
@@ -53,11 +57,16 @@ class VideoViewer(QOpenGLWidget):
         surfaceFormat.setSamples(4)
         self.setFormat(surfaceFormat)
 
-    def load_frame_image(self):
+    def load_frame_image_1080p(self):
         frame = self.videoClip.get_frame(self.currentTime)
         frameData = numpy.array(frame)
-        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888).\
-            scaled(1280, 720, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+
+    def load_frame_image_720p(self):
+        frame = self.videoClip.get_frame(self.currentTime)
+        frameData = numpy.array(frame)
+        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888) \
+            .scaled(1280, 720, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
     def playerTimer_timeout(self):
         self.currentTime = self.mediaPlayer.position() / 1000
@@ -71,6 +80,10 @@ class VideoViewer(QOpenGLWidget):
         self.load_frame_image()
         self.update()
         self.video_time_changed(self.currentTime)
+
+    def mediaPlayer_mediaStatusChanged(self):
+        if self.mediaPlayer.mediaStatus() == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.stop()
 
     def paintGL(self) -> None:
         if self.status != VideoViewer.MediaStatus.STOPPED and self.frameImage is not None:
@@ -134,14 +147,16 @@ class VideoViewer(QOpenGLWidget):
     def resize_viewer(self, size):
         if size == VideoViewer.ViewerSize.SIZE_720p:
             self.setFixedSize(1280, 720)
+            self.load_frame_image = self.load_frame_image_720p
         elif size == VideoViewer.ViewerSize.SIZE_1080p:
             self.setFixedSize(1920, 1080)
+            self.load_frame_image = self.load_frame_image_1080p
 
     def video_time_changed(self, s: float):
-        pass
+        ...
 
     def video_play_stop(self):
-        pass
+        ...
 
 
 class TimeSlider(QSlider):
@@ -156,7 +171,7 @@ class TimeSlider(QSlider):
             self.mouse_press_value_changed(v)
 
     def mouse_press_value_changed(self, value: int):
-        pass
+        ...
 
 
 def format_time(t: float):
@@ -254,7 +269,7 @@ class CentralWidget(QWidget):
             self.lyricsTable.setItem(i, 1, QTableWidgetItem(self.configures.audioInfo.lyrics[i].text))
 
     def play_preview(self):
-        self.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_720p)
+        self.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_1080p)
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         self.videoViewer.play()
 
