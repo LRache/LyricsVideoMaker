@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QMainWindow, QWidget, QOpenGLWidget, QHBoxLayout, QG
     QSlider, QLabel, QStyle, QTableWidget, QTableWidgetItem
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
-from PyQt5.QtGui import QImage, QPainter, QColor, QFont, QSurfaceFormat, QMouseEvent
+from PyQt5.QtGui import QImage, QPainter, QColor, QFont, QSurfaceFormat, QMouseEvent, QKeyEvent
 
 from moviepy.video.VideoClip import VideoClip
 
@@ -15,7 +15,6 @@ from GenerateVideo import generate_video
 
 
 class VideoViewer(QOpenGLWidget):
-
     class ViewerSize(enum.Enum):
         SIZE_1080p = 0
         SIZE_720p = 1
@@ -60,13 +59,19 @@ class VideoViewer(QOpenGLWidget):
     def load_frame_image_1080p(self):
         frame = self.videoClip.get_frame(self.currentTime)
         frameData = numpy.array(frame)
-        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888). \
+            scaled(1920, 1080, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
 
     def load_frame_image_720p(self):
         frame = self.videoClip.get_frame(self.currentTime)
         frameData = numpy.array(frame)
         self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888) \
             .scaled(1280, 720, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+
+    def load_frame_image_without_resize(self):
+        frame = self.videoClip.get_frame(self.currentTime)
+        frameData = numpy.array(frame)
+        self.frameImage = QImage(frameData, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
 
     def playerTimer_timeout(self):
         self.currentTime = self.mediaPlayer.position() / 1000
@@ -128,7 +133,7 @@ class VideoViewer(QOpenGLWidget):
         self.status = VideoViewer.MediaStatus.PAUSED
 
     def set_position(self, t: float):
-        self.mediaPlayer.setPosition(int(t*1000))
+        self.mediaPlayer.setPosition(int(t * 1000))
         print("set_position：", t)
 
     def set_video(self, videoClip: VideoClip, audioPath: str = None):
@@ -147,10 +152,17 @@ class VideoViewer(QOpenGLWidget):
     def resize_viewer(self, size):
         if size == VideoViewer.ViewerSize.SIZE_720p:
             self.setFixedSize(1280, 720)
-            self.load_frame_image = self.load_frame_image_720p
+            if self.videoClip.size == (1280, 720):
+                self.load_frame_image = self.load_frame_image_without_resize
+            else:
+                self.load_frame_image = self.load_frame_image_720p
+
         elif size == VideoViewer.ViewerSize.SIZE_1080p:
             self.setFixedSize(1920, 1080)
-            self.load_frame_image = self.load_frame_image_1080p
+            if self.videoClip.size == (1920, 1080):
+                self.load_frame_image = self.load_frame_image_without_resize
+            else:
+                self.load_frame_image = self.load_frame_image_1080p
 
     def video_time_changed(self, s: float):
         ...
@@ -233,6 +245,7 @@ class CentralWidget(QWidget):
         previewGroupBoxLayout = QVBoxLayout()
         previewGroupBoxLayout.addWidget(self.videoViewer)
         previewGroupBoxLayout.addLayout(timeBarLayout)
+        previewGroupBoxLayout.addStretch()
         previewGroupBox.setLayout(previewGroupBoxLayout)
 
         lyricsGroupBoxLayout = QVBoxLayout()
@@ -246,7 +259,7 @@ class CentralWidget(QWidget):
 
     def video_time_changed(self, s: float):
         self.timeLabel.setText(f"{format_time(s)}/{self.totalTimeString}")
-        self.timeSlider.setValue(int(s*1000))
+        self.timeSlider.setValue(int(s * 1000))
 
     def video_play_stop(self):
         self.video_time_changed(0)
@@ -260,13 +273,14 @@ class CentralWidget(QWidget):
 
         self.totalTimeString = format_time(videoClip.duration)
         self.timeLabel.setText(f"00:00.000/{self.totalTimeString}")
-        self.timeSlider.setMaximum(int(videoClip.duration*1000))
+        self.timeSlider.setMaximum(int(videoClip.duration * 1000))
         self.timeSlider.setValue(0)
 
-        self.lyricsTable.setRowCount(len(self.configures.audioInfo.lyrics))
-        for i in range(len(self.configures.audioInfo.lyrics)):
-            self.lyricsTable.setItem(i, 0, QTableWidgetItem(format_time(self.configures.audioInfo.lyrics[i].time)))
-            self.lyricsTable.setItem(i, 1, QTableWidgetItem(self.configures.audioInfo.lyrics[i].text))
+        if self.configures.audioInfo.lyrics is not None:
+            self.lyricsTable.setRowCount(len(self.configures.audioInfo.lyrics))
+            for i in range(len(self.configures.audioInfo.lyrics)):
+                self.lyricsTable.setItem(i, 0, QTableWidgetItem(format_time(self.configures.audioInfo.lyrics[i].time)))
+                self.lyricsTable.setItem(i, 1, QTableWidgetItem(self.configures.audioInfo.lyrics[i].text))
 
     def play_preview(self):
         self.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_1080p)
@@ -281,7 +295,7 @@ class CentralWidget(QWidget):
         self.videoViewer.set_position(t)
 
     def press_slider_time_changed(self, t: int):
-        self.set_position(t/1000)
+        self.set_position(t / 1000)
 
     def play_button_clicked(self):
         if self.videoViewer.status == VideoViewer.MediaStatus.STOPPED or \
@@ -302,6 +316,8 @@ class MainWindow(QMainWindow):
         self.configures: Configures | None = None
         self.init_ui()
 
+        self.centerWidget.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_1080p)
+
         if configures is not None:
             self.set_configures(configures)
 
@@ -311,7 +327,13 @@ class MainWindow(QMainWindow):
     def set_configures(self, configures: Configures):
         self.configures = configures
         self.centerWidget.set_video(configures)
-        self.setWindowTitle(f"预览 - {configures.audioInfo.titleText} {configures.audioInfo.subTitleText}")
+        self.setWindowTitle(f"预览 - {configures.audioInfo.titleText} [{configures.audioInfo.subTitleText}]")
 
     def play_preview(self):
         self.centerWidget.play_preview()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key_Space:
+            self.play_preview()
+        else:
+            super().keyPressEvent(event)

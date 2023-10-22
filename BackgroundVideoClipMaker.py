@@ -7,7 +7,7 @@ from PIL.ImageDraw import ImageDraw
 from io import BytesIO
 
 from Configures import Configures
-from BackgroundCache import get_background_cache
+from GenerateBackgroundImage import generate_cover_circle_mask, generate_background_image
 
 
 def set_background_image(backgroundImage: Image, configures: Configures):
@@ -55,18 +55,18 @@ def set_background_image(backgroundImage: Image, configures: Configures):
 
 
 def get_cover_background_image(configures: Configures):
-    audioFile = mutagen.File(configures.audioInfo.audioFilePath)
     if configures.background.coverImagePath is None:
+        audioFile = mutagen.File(configures.audioInfo.audioFilePath)
         coverData = audioFile.tags["APIC:"].data
         io = BytesIO(coverData)
     else:
         io = open(configures.background.coverImagePath, "rb")
 
     coverImage = Image.open(io)
-    coverImage = coverImage.resize((configures.background.coverImageSize * configures.multipy,
-                                    configures.background.coverImageSize * configures.multipy))
+    coverImage = coverImage.resize((configures.background.coverImageSize,
+                                    configures.background.coverImageSize))
 
-    backgroundImage = set_background_image(Image.open(io).convert("RGBA"), configures)
+    backgroundImage = set_background_image(Image.open(io).convert("RGB"), configures)
 
     return coverImage, backgroundImage
 
@@ -74,100 +74,30 @@ def get_cover_background_image(configures: Configures):
 def get_cover_clip_maker(configures: Configures):
     coverImage, backgroundImage = get_cover_background_image(configures)
 
-    sx = sy = r = configures.background.coverImageSize // 2 * configures.multipy
-    r2 = r ** 2
-    newCoverImageSize = (configures.background.coverImageSize * configures.multipy,
-                         configures.background.coverImageSize * configures.multipy)
-    cycle = configures.background.coverImageCycle
-    degreeSpeed = -360 / cycle
-
     if not configures.showCover:
         data = numpy.array(backgroundImage)
-
-        def fun(t: float):
-            return data
-        return fun
+        return lambda t: data
 
     elif not configures.background.coverRotating:
-        newBackgroundImage = backgroundImage.copy()
-        newCoverImage = Image.new("RGBA", newCoverImageSize)
-        coverPix = coverImage.load()
-        newCoverPix = newCoverImage.load()
-
-        ox = coverImage.size[0] // 2
-        oy = coverImage.size[1] // 2
-        for x in range(ox - r, ox + r):
-            for y in range(oy - r, oy + r):
-                dx = x - ox
-                dy = y - oy
-                d = (pow(dx, 2) + pow(dy, 2))
-                if d <= r2:
-                    newCoverPix[r + dx, r + dy] = coverPix[x, y]
-        newCoverImage = newCoverImage.resize((r, r), resample=Image.LANCZOS)
-        newBackgroundImage.paste(newCoverImage,
-                                 (configures.background.coverImageX, configures.background.coverImageY),
-                                 mask=newCoverImage.split()[3])
-        data = numpy.array(newBackgroundImage.convert("RGB"))
+        maskImage = generate_cover_circle_mask(configures.background.coverImageSize // 2)
+        data = numpy.array(generate_background_image(0,
+                                                     (configures.background.coverImageX,
+                                                      configures.background.coverImageY),
+                                                     coverImage, maskImage, backgroundImage))
 
         return lambda t: data
 
-    elif configures.useCache:
-        imageCache = get_background_cache(configures, coverImage, backgroundImage)
-
-        def fun(t: float):
-            t = round(t % cycle, 2)
-            if t in imageCache:
-                return imageCache[t]
-
-            degree = round(t * degreeSpeed, 2)
-            rotatedCoverImage = coverImage.rotate(degree, Image.BILINEAR, expand=True)
-            newBackgroundImage = backgroundImage.copy()
-            newCoverImage = Image.new("RGBA", newCoverImageSize)
-            rotatedCoverPix = rotatedCoverImage.load()
-            newCoverPix = newCoverImage.load()
-
-            ox = rotatedCoverImage.size[0] // 2
-            oy = rotatedCoverImage.size[1] // 2
-            for x in range(ox - r, ox + r):
-                for y in range(oy - r, oy + r):
-                    dx = x - ox
-                    dy = y - oy
-                    d = (pow(dx, 2) + pow(dy, 2))
-                    if d <= r2:
-                        newCoverPix[sx + dx, sy + dy] = rotatedCoverPix[x, y]
-            newCoverImage = newCoverImage.resize((r, r), resample=Image.LANCZOS)
-            newBackgroundImage.paste(newCoverImage,
-                                     (configures.background.coverImageX, configures.background.coverImageY),
-                                     mask=newCoverImage.split()[3])
-            data = numpy.array(newBackgroundImage.convert("RGB"))
-            imageCache[degree] = data
-            return data
     else:
+        maskImage = generate_cover_circle_mask(configures.background.coverImageSize // 2)
+
         def fun(t: float):
-            degree = round(t % cycle * degreeSpeed, 2)
-            rotatedCoverImage = coverImage.rotate(degree, Image.BILINEAR, expand=True)
-            newBackgroundImage = backgroundImage.copy()
-            newCoverImage = Image.new("RGBA", newCoverImageSize)
-            rotatedCoverPix = rotatedCoverImage.load()
-            newCoverPix = newCoverImage.load()
+            angle = -(t % configures.background.coverImageCycle / configures.background.coverImageCycle * 360)
+            return numpy.array(generate_background_image(angle,
+                                                         (configures.background.coverImageX,
+                                                          configures.background.coverImageY),
+                                                         coverImage, maskImage, backgroundImage))
 
-            ox = rotatedCoverImage.size[0] // 2
-            oy = rotatedCoverImage.size[1] // 2
-            for x in range(ox - r, ox + r):
-                for y in range(oy - r, oy + r):
-                    dx = x - ox
-                    dy = y - oy
-                    d = (pow(dx, 2) + pow(dy, 2))
-                    if d <= r2:
-                        newCoverPix[sx + dx, sy + dy] = rotatedCoverPix[x, y]
-            newCoverImage = newCoverImage.resize((r, r), resample=Image.LANCZOS)
-            newBackgroundImage.paste(newCoverImage,
-                                     (configures.background.coverImageX, configures.background.coverImageY),
-                                     mask=newCoverImage.split()[3])
-            data = numpy.array(newBackgroundImage.convert("RGB"))
-            return data
-
-    return fun
+        return fun
 
 
 def get_background_video_clip(settings: Configures):

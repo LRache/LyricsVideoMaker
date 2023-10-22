@@ -28,7 +28,6 @@ CONFIGURES_EXAMPLE = \
         "coverRotating": True,
 
         "application": {
-            "useCache": True,
             "showCover": True,
             "preview": False
         }
