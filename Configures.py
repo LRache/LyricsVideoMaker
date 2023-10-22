@@ -19,8 +19,8 @@ class AudioInfo:
 
 
 class LyricsConfigures:
-    fontFileName: str = "msyh.ttc"
-    currentFontFileName: str = "msyhbd.ttc"
+    fontFileName: str = "./fonts/msyh.ttc"
+    currentFontFileName: str = "./fonts/msyhbd.ttc"
     fontSize: int = 40
     lineSplit = 80
     color: str = "rgb(158, 160, 155)"
@@ -44,10 +44,10 @@ class LyricsConfigures:
 
 
 class TitleConfigures:
-    fontFileName: str = "msyhbd.ttc"
+    fontFileName: str = "./fonts/msyhbd.ttc"
     fontSize: int = 50
     posY: int = 650
-    subFontFileName: str = "msyh.ttc"
+    subFontFileName: str = "./fonts/msyh.ttc"
     subFontSize: int = 30
     subPosY: int = 710
     textColor = "rgb(213, 213, 210)"
@@ -71,6 +71,7 @@ class BackgroundConfigures:
     recordArcSplit: int = 2
     recordArcBeginWidth: int = 20
 
+    coverImageSpeed = (0.5, 1)  # circle 1degree per 8fps total 120
     coverImageCycle = 50
     coverImagePath = None
 
@@ -86,13 +87,12 @@ class Configures:
     fps = 30
     duration: int = 0
     videoSize = (1920, 1080)
-    videoSize_ = (3840, 2160)
     videoWidth, videoHeight = videoSize
 
-    useCache = True
     showCover = True
     preview = False
     multipy = 2
+    ratio = 1
 
     advancePointSize = 20
     advancePointSplit = 40
@@ -104,6 +104,7 @@ class Configures:
         (videoWidth / 2 - advancePointSize / 2 + advancePointSplit,
          LyricsConfigures.lineY[2] - 30)
     )
+    advancePointColor = (213, 213, 210)
 
     def __init__(self):
         self.audioInfo = AudioInfo()
@@ -122,13 +123,45 @@ class Configures:
     def set_multiline_lyrics(self, flag: bool):
         self.lyrics.set_multiline(flag)
         self.advancePointPositionList = (
-            (self.videoWidth / 2 - self.advancePointSize / 2 - self.advancePointSplit,
-             self.lyrics.lineY[2] - 30),
-            (self.videoWidth / 2 - self.advancePointSize / 2,
-             self.lyrics.lineY[2] - 30),
-            (self.videoWidth / 2 - self.advancePointSize / 2 + self.advancePointSplit,
-             self.lyrics.lineY[2] - 30)
+            ((self.videoWidth / 2 - self.advancePointSize / 2 - self.advancePointSplit) * self.ratio,
+             (self.lyrics.lineY[2] - 30) * self.ratio),
+            ((self.videoWidth / 2 - self.advancePointSize / 2) * self.ratio,
+             (self.lyrics.lineY[2] - 30) * self.ratio),
+            ((self.videoWidth / 2 - self.advancePointSize / 2 + self.advancePointSplit) * self.ratio,
+             (self.lyrics.lineY[2] - 30 * self.ratio))
         )
+
+    def set_resolution_ratio(self, ratio):
+        oldRatio = self.ratio
+        self.ratio = ratio
+
+        self.videoWidth = int(Configures.videoWidth * ratio)
+        self.videoHeight = int(Configures.videoHeight * ratio)
+        self.videoSize = (self.videoWidth, self.videoHeight)
+        self.advancePointSize = int(Configures.advancePointSize * ratio)
+        self.advancePointSplit = int(Configures.advancePointSplit * ratio)
+        self.advancePointPositionList = tuple(map((lambda x: (x[0] / oldRatio * ratio, x[1] / oldRatio * ratio)),
+                                                  self.advancePointPositionList))
+
+        self.lyrics.fontSize = LyricsConfigures.fontSize * ratio
+        self.lyrics.lineSplit = LyricsConfigures.lineSplit * ratio
+        self.lyrics.firstLineY = LyricsConfigures.firstLineY * ratio
+        self.lyrics.moveSpeed = LyricsConfigures.moveSpeed * ratio
+        self.lyrics.lineY = list(map(lambda x: x * ratio, LyricsConfigures.lineY))
+
+        self.title.fontSize = TitleConfigures.fontSize * ratio
+        self.title.posY = TitleConfigures.posY * ratio
+        self.title.subPosY = TitleConfigures.subPosY * ratio
+        self.title.subFontSize = TitleConfigures.subFontSize * ratio
+
+        self.background.coverImageSize = int(BackgroundConfigures.coverImageSize * ratio)
+        self.background.coverImageY = int(BackgroundConfigures.coverImageY * ratio)
+        self.background.recordPixmapR = int(BackgroundConfigures.recordPixmapR * ratio)
+        self.background.recordArcWidth = int(BackgroundConfigures.recordArcWidth * ratio)
+        self.background.recordArcSplit = int(BackgroundConfigures.recordArcSplit * ratio)
+        self.background.recordArcBeginWidth = int(BackgroundConfigures.recordArcBeginWidth * ratio)
+
+        self.cal()
 
 
 def load_configures(configures: Configures, path: str):
@@ -156,10 +189,11 @@ def load_configures(configures: Configures, path: str):
     configures.duration = c.get("duration", Configures.duration)
     configures.fps = c.get("fps", Configures.fps)
 
-    configures.useCache = c["application"]["useCache"]
     configures.showCover = c["application"]["showCover"]
     configures.preview = c["application"]['preview']
     configures.showCover = c["application"]["showCover"]
+
+    configures.set_resolution_ratio(c.get("ratio", 1))
 
     if configures.audioInfo.lyricsFilePath is not None:
         if not os.path.isfile(configures.audioInfo.lyricsFilePath):
@@ -168,3 +202,10 @@ def load_configures(configures: Configures, path: str):
                 configures.audioInfo.lyricsFilePath = tmp
             else:
                 raise FileNotFoundError(f'"{configures.audioInfo.lyricsFilePath}" or "{tmp}"')
+    if configures.background.coverImagePath is not None:
+        if not os.path.isfile(configures.background.coverImagePath):
+            tmp = dirname + configures.background.coverImagePath
+            if os.path.isfile(tmp):
+                configures.background.coverImagePath = tmp
+            else:
+                raise FileNotFoundError(f'"{configures.background.coverImagePath}" or "{tmp}"')
