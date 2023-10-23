@@ -316,8 +316,6 @@ class MainWindow(QMainWindow):
         self.configures: Configures | None = None
         self.init_ui()
 
-        self.centerWidget.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_1080p)
-
         if configures is not None:
             self.set_configures(configures)
 

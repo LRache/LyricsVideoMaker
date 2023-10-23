@@ -18,14 +18,14 @@ def get_title_text_clip(configures: Configures):
     titleClip = titleClip.set_duration(configures.duration)
     titleClip = titleClip.set_position(("center", configures.title.posY))
 
-    title2Clip: TextClip = TextClip(configures.audioInfo.subTitleText,
-                                    color=configures.title.textColor,
-                                    fontsize=configures.title.subFontSize,
-                                    font=configures.title.subFontFileName)
-    title2Clip = title2Clip.set_duration(configures.duration)
-    title2Clip = title2Clip.set_position(("center", configures.title.subPosY))
+    subTitleClip: TextClip = TextClip(configures.audioInfo.subTitleText,
+                                      color=configures.title.textColor,
+                                      fontsize=configures.title.subFontSize,
+                                      font=configures.title.subFontFileName)
+    subTitleClip = subTitleClip.set_duration(configures.duration)
+    subTitleClip = subTitleClip.set_position(("center", configures.title.subPosY))
 
-    return titleClip, title2Clip
+    return titleClip, subTitleClip
 
 
 def generate_video(configures: Configures):
@@ -37,7 +37,7 @@ def generate_video(configures: Configures):
         for i in configures.audioInfo.advancePoints:
             configures.audioInfo.lyrics[i].advance = True
 
-    mainAudioClip = AudioFileClip(configures.audioInfo.audioFilePath)
+    mainAudioClip = AudioFileClip(configures.audioInfo.audioFilePath, fps=configures.audioInfo.fps)
     if configures.duration is None:
         configures.duration = mainAudioClip.duration
 

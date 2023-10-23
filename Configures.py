@@ -14,6 +14,8 @@ class AudioInfo:
     lyrics: [Lyrics] = None
     lyricsOffset: float = 0.0
 
+    fps: int = 44100
+
     def __init__(self):
         self.advancePoints = []
 
@@ -71,7 +73,6 @@ class BackgroundConfigures:
     recordArcSplit: int = 2
     recordArcBeginWidth: int = 20
 
-    coverImageSpeed = (0.5, 1)  # circle 1degree per 8fps total 120
     coverImageCycle = 50
     coverImagePath = None
 
@@ -143,11 +144,11 @@ class Configures:
         self.advancePointPositionList = tuple(map((lambda x: (x[0] / oldRatio * ratio, x[1] / oldRatio * ratio)),
                                                   self.advancePointPositionList))
 
-        self.lyrics.fontSize = LyricsConfigures.fontSize * ratio
-        self.lyrics.lineSplit = LyricsConfigures.lineSplit * ratio
-        self.lyrics.firstLineY = LyricsConfigures.firstLineY * ratio
-        self.lyrics.moveSpeed = LyricsConfigures.moveSpeed * ratio
-        self.lyrics.lineY = list(map(lambda x: x * ratio, LyricsConfigures.lineY))
+        self.lyrics.fontSize = self.lyrics.fontSize / oldRatio * ratio
+        self.lyrics.lineSplit = self.lyrics.lineSplit / oldRatio * ratio
+        self.lyrics.firstLineY = self.lyrics.firstLineY / oldRatio * ratio
+        self.lyrics.moveSpeed = self.lyrics.moveSpeed / oldRatio * ratio
+        self.lyrics.lineY = list(map(lambda x: x / oldRatio * ratio, self.lyrics.lineY))
 
         self.title.fontSize = TitleConfigures.fontSize * ratio
         self.title.posY = TitleConfigures.posY * ratio

@@ -1,6 +1,6 @@
 from Configures import Configures, load_configures
 from GenerateVideo import generate_video
-from VideoPreviewer import MainWindow
+from VideoPreviewer import MainWindow, VideoViewer
 
 from PyQt5.QtWidgets import QApplication
 
@@ -15,6 +15,7 @@ import time
 def preview_video(configures):
     app = QApplication(sys.argv)
     window = MainWindow(configures)
+    window.centerWidget.videoViewer.resize_viewer(VideoViewer.ViewerSize.SIZE_1080p)
     window.show()
     window.play_preview()
     return app.exec_()
