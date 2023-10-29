@@ -16,6 +16,8 @@ def get_one_lyrics_text_clip(lyrics: str, configures: Configures,
     if not lyrics:
         return []
 
+    global advancePointImageClip
+
     clips = []
     if advance:
         pointClip0 = advancePointImageClip.set_position(configures.advancePointPositionList[0]) \
@@ -73,6 +75,7 @@ def get_one_lyrics_text_clip(lyrics: str, configures: Configures,
 
 def get_lyrics_text_clip_list(configures: Configures) -> [TextClip]:
     global advancePointImageClip
+    advancePointImage = Image.new("RGBA", (configures.advancePointSize * 2, configures.advancePointSize * 2))
 
     lyricsTextClipList = []
     lyricsList: [Lyrics] = configures.audioInfo.lyrics
@@ -84,7 +87,6 @@ def get_lyrics_text_clip_list(configures: Configures) -> [TextClip]:
     ))
     print(str(lyricsList[0]))
 
-    advancePointImage = Image.new("RGBA", (configures.advancePointSize * 2, configures.advancePointSize * 2))
     drawer = ImageDraw.ImageDraw(advancePointImage)
     drawer.ellipse((0, 0, configures.advancePointSize * 2, configures.advancePointSize * 2),
                    fill=configures.advancePointColor)
