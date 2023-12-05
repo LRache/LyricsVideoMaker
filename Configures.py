@@ -165,6 +165,19 @@ class Configures:
         self.cal()
 
 
+def find_file_path(dirname: str, filepath: str | None):
+    if filepath is None:
+        return None
+    if not os.path.isfile(filepath):
+        tmp = dirname + filepath
+        if os.path.isfile(tmp):
+            return tmp
+        else:
+            raise FileNotFoundError(f"{filepath} or {tmp}")
+    else:
+        return filepath
+
+
 def load_configures(configures: Configures, path: str):
     with open(path, encoding="utf-8") as f:
         c: dict = json.load(f)
@@ -196,17 +209,6 @@ def load_configures(configures: Configures, path: str):
 
     configures.set_resolution_ratio(c.get("ratio", 1))
 
-    if configures.audioInfo.lyricsFilePath is not None:
-        if not os.path.isfile(configures.audioInfo.lyricsFilePath):
-            tmp = dirname + configures.audioInfo.lyricsFilePath
-            if os.path.isfile(tmp):
-                configures.audioInfo.lyricsFilePath = tmp
-            else:
-                raise FileNotFoundError(f'"{configures.audioInfo.lyricsFilePath}" or "{tmp}"')
-    if configures.background.coverImagePath is not None:
-        if not os.path.isfile(configures.background.coverImagePath):
-            tmp = dirname + configures.background.coverImagePath
-            if os.path.isfile(tmp):
-                configures.background.coverImagePath = tmp
-            else:
-                raise FileNotFoundError(f'"{configures.background.coverImagePath}" or "{tmp}"')
+    configures.audioInfo.audioFilePath = find_file_path(dirname, configures.audioInfo.audioFilePath)
+    configures.audioInfo.lyricsFilePath = find_file_path(dirname, configures.audioInfo.lyricsFilePath)
+    configures.background.coverImagePath = find_file_path(dirname, configures.background.coverImagePath)
